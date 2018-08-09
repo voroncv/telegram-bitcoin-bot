@@ -1,0 +1,12 @@
+{
+  "name": "telegram-bitcoin-bot",
+  "version": "1.0.0",
+  "description": "Telegram bitcoin bot",
+  "main": "app.js",
+  "repository": "https://github.com/voroncv/telegram-bitcoin-bot.git",
+  "author": "Alexandr Voroncov <defauthack@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "telegraf": "^3.22.2"
+  }
+}
