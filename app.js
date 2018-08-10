@@ -98,7 +98,7 @@ const welcomeWizard = new WizardScene('welcome-wizard',
 						]).oneTime().resize().extra());
 					return ctx.wizard.next();
 				} else {
-					return defaultResponse(ctx, 'Hello!', false);
+					return defaultResponse(ctx, 'Use buttons', false);
 				}
 			})
 			.catch(mongo_error => {
@@ -251,6 +251,34 @@ welcomeWizard.hears('Wallet Balance', (ctx, next) => {
 		.catch(mongo_error => {
 
 		})
+	})
+	.catch ((error) => {
+		return ctx.reply('Bot error');
+	})
+});
+
+welcomeWizard.hears('Send bitcoins', (ctx, next) => {
+	new Promise (function(resolve, reject) {
+		return defaultResponse(ctx, 'Send', false);
+	})
+	.catch ((error) => {
+		return ctx.reply('Bot error');
+	})
+});
+
+
+welcomeWizard.hears('Receive bitcoins', (ctx, next) => {
+	new Promise (function(resolve, reject) {
+		return defaultResponse(ctx, 'Receive', false);
+	})
+	.catch ((error) => {
+		return ctx.reply('Bot error');
+	})
+});
+
+welcomeWizard.hears('About bot', (ctx, next) => {
+	new Promise (function(resolve, reject) {
+		return defaultResponse(ctx, 'Cool bot', false);
 	})
 	.catch ((error) => {
 		return ctx.reply('Bot error');
