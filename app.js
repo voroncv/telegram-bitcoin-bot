@@ -6,6 +6,7 @@ const Markup = require('telegraf/markup');
 const WizardScene = require('telegraf/scenes/wizard');
 const mongoose = require('mongoose');
 const https = require('https');
+const assert = require('assert')
 
 const bitcoin = require('bitcoinjs-lib');
 
@@ -35,13 +36,13 @@ let User = mongoose.model('UserSchema', UserSchema);
 function defaultResponse (ctx, text, isMarkDown) {
 	if (isMarkDown) {
 		return ctx.replyWithMarkdown(text, Markup.keyboard([
-		['Send bitcoins', 'Receive bitcoins'],
-		['Wallet Balance', 'About bot']
+		['Send', 'Receive'],
+		['Balance', 'About bot']
 		]).oneTime().resize().extra());
 	}
 	return ctx.reply(text, Markup.keyboard([
-		['Send bitcoins', 'Receive bitcoins'],
-		['Wallet Balance', 'About bot']
+		['Send', 'Receive'],
+		['Balance', 'About bot']
 		]).oneTime().resize().extra());
 }
 
@@ -93,8 +94,9 @@ const welcomeWizard = new WizardScene('welcome-wizard',
 			.exec()
 			.then(mongo_result => {
 				if (mongo_result.length === 0) {
-					ctx.reply('Choose language', Markup.keyboard([
-						['English', 'Русский']
+					ctx.reply('Choose the type of wallet', Markup.keyboard([
+						['Create new wallet'],
+						['Restore from private key']
 						]).oneTime().resize().extra());
 					return ctx.wizard.next();
 				} else {
@@ -113,32 +115,7 @@ const welcomeWizard = new WizardScene('welcome-wizard',
 	(ctx, next) => {
 		new Promise (function(resolve, reject) {
 			let botDataText = parseBotDataText(ctx);
-			if (botDataText !== 'English' && botDataText !== 'Русский') {
-				return ctx.reply('Use buttons');
-			}
-			if (botDataText === 'English') {
-				ctx.reply('Choose the type of wallet', Markup.keyboard([
-					['Create new wallet'],
-					['Restore from private key']
-					]).oneTime().resize().extra());
-				return ctx.wizard.next();
-			} else if (botDataText === 'Русский') {
-				ctx.reply('Выберите тип кошелька', Markup.keyboard([
-					['Создать новый кошелек'],
-					['Восстановить из приватного ключа']
-					]).oneTime().resize().extra());
-				return ctx.wizard.next();
-			}
-		})
-		.catch ((error) => {
-            console.log('error');
-            return next();
-        });
-	},
-	(ctx, next) => {
-		new Promise (function(resolve, reject) {
-			let botDataText = parseBotDataText(ctx);
-			if (botDataText === 'Create new wallet' || botDataText === 'Создать новый кошелек') {
+			if (botDataText === 'Create new wallet') {
 				const keyPair = bitcoin.ECPair.makeRandom();
 				const { address } = bitcoin.payments.p2pkh({ pubkey: keyPair.publicKey });
 				ctx.session.address = address;
@@ -147,7 +124,7 @@ const welcomeWizard = new WizardScene('welcome-wizard',
 						['Okay'],
 						]).oneTime().resize().extra());
 				return ctx.wizard.next();
-			} else if (botDataText === 'Restore from private key' || botDataText === 'Восстановить из приватного ключа') {
+			} else if (botDataText === 'Restore from private key') {
 				ctx.session.isRestoreWallet = true;
 				ctx.reply('Enter your private key');
 				return ctx.wizard.next();
@@ -211,7 +188,7 @@ const welcomeWizard = new WizardScene('welcome-wizard',
 	}
 )
 
-welcomeWizard.hears('Wallet Balance', (ctx, next) => {
+welcomeWizard.hears('Balance', (ctx, next) => {
 	new Promise (function(resolve, reject) {
 		let botDataFrom = parseBotDataFrom(ctx);
 		let botDataChat = parseBotDataChat(ctx);
@@ -249,7 +226,7 @@ welcomeWizard.hears('Wallet Balance', (ctx, next) => {
 			}
 		})
 		.catch(mongo_error => {
-
+			return ctx.reply('Bot error');
 		})
 	})
 	.catch ((error) => {
@@ -257,19 +234,32 @@ welcomeWizard.hears('Wallet Balance', (ctx, next) => {
 	})
 });
 
-welcomeWizard.hears('Send bitcoins', (ctx, next) => {
+welcomeWizard.hears('Send', (ctx, next) => {
 	new Promise (function(resolve, reject) {
 		return defaultResponse(ctx, 'Send', false);
 	})
 	.catch ((error) => {
+		console.log(error)
 		return ctx.reply('Bot error');
 	})
 });
 
 
-welcomeWizard.hears('Receive bitcoins', (ctx, next) => {
+welcomeWizard.hears('Receive', (ctx, next) => {
 	new Promise (function(resolve, reject) {
-		return defaultResponse(ctx, 'Receive', false);
+		let botDataFrom = parseBotDataFrom(ctx);
+		User.find({ telegram_id: botDataFrom.id })
+		.exec()
+		.then(mongo_result => {
+			if (mongo_result.length !== 0) {
+				return defaultResponse(ctx, `Send the bitcoins to this address - *${mongo_result[0].btc_address}*`, true);
+			} else {
+				return ctx.wizard.back();
+			}
+		})
+		.catch(mongo_error => {
+			return ctx.reply('Bot error');
+		})
 	})
 	.catch ((error) => {
 		return ctx.reply('Bot error');
