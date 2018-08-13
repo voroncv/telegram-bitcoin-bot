@@ -7,8 +7,9 @@ const WizardScene = require('telegraf/scenes/wizard');
 const mongoose = require('mongoose');
 const https = require('https');
 const assert = require('assert')
-
 const bitcoin = require('bitcoinjs-lib');
+const Scene = require('telegraf/scenes/base')
+const { enter, leave } = Stage
 
 const config = {
 	bot_token: '',
@@ -85,6 +86,47 @@ function restore_wallet(key) {
 		return 'FAILED';
 	}
 }
+
+function checkValidBTCAddress (address) {
+	try {
+		bitcoin.address.toOutputScript(address);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+const sendBTCScene = new Scene('sendBTC');
+
+sendBTCScene.enter((ctx) => {
+	ctx.reply('Enter destination address', Markup.keyboard([
+		['Back']
+		]).oneTime().resize().extra());
+});
+
+sendBTCScene.hears('Back', (ctx) => {
+	ctx.scene.leave();
+	return defaultResponse(ctx, 'Main menu', false);
+});
+
+sendBTCScene.on('text', (ctx) => {
+	let botDataText = parseBotDataText(ctx);
+	if (checkValidBTCAddress(botDataText)) {
+		ctx.reply('Enter amount in BTC', Markup.keyboard([
+			['Back']
+			]).oneTime().resize().extra());
+	} else {
+		ctx.reply('Invalid address', Markup.keyboard([
+			['Back']
+			]).oneTime().resize().extra());
+	}
+});
+
+sendBTCScene.on('message', (ctx) => {
+	ctx.reply('Use buttons', Markup.keyboard([
+		['Back']
+		]).oneTime().resize().extra());
+});
 
 const welcomeWizard = new WizardScene('welcome-wizard',
 	(ctx, next) => {
@@ -234,17 +276,6 @@ welcomeWizard.hears('Balance', (ctx, next) => {
 	})
 });
 
-welcomeWizard.hears('Send', (ctx, next) => {
-	new Promise (function(resolve, reject) {
-		return defaultResponse(ctx, 'Send', false);
-	})
-	.catch ((error) => {
-		console.log(error)
-		return ctx.reply('Bot error');
-	})
-});
-
-
 welcomeWizard.hears('Receive', (ctx, next) => {
 	new Promise (function(resolve, reject) {
 		let botDataFrom = parseBotDataFrom(ctx);
@@ -276,10 +307,11 @@ welcomeWizard.hears('About bot', (ctx, next) => {
 });
 
 const bot = new Telegraf(config.bot_token);
-const stage = new Stage([welcomeWizard], {
+const stage = new Stage([welcomeWizard, sendBTCScene], {
 	default: 'welcome-wizard'
 });
 
 bot.use(session());
 bot.use(stage.middleware());
+welcomeWizard.hears('Send', enter('sendBTC'));
 bot.startPolling();
